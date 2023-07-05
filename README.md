@@ -1,5 +1,8 @@
 # SPHORB
 
+Circle Optics specific requirements
+Need Boost-Filesystem
+
 What is SPHORB?
 ----------------
 

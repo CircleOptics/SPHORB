@@ -26,6 +26,7 @@
 #include "SPHORB.h"
 #include "pfm.h"
 #include "detector.h"
+#include <opencv2/opencv.hpp>
 
 #define MAX_PATH 256
 
@@ -37,6 +38,21 @@ namespace cv
 
 	const int cells[] = {256, 204, 162, 128, 102, 80, 64};
 	int levels;
+
+	void applyMaskToImage(cv::Mat& image, cv::Mat& mask)
+	{	
+		// std::cout << "Input image type: " << image.type() << std::endl;
+	    // std::cout << "Image dimensions: " << image.rows << "x" << image.cols << std::endl;
+	    // std::cout << "Image empty: " << (image.empty() ? "true" : "false") << std::endl;
+
+	    // std::cout << "Input image type: " << image.type() << std::endl;
+	    // std::cout << "Number of channels: " << image.channels() << std::endl;
+
+		mask.setTo(255, mask > 0);
+		cv::bitwise_and(image, mask, image);
+
+	    cv::imwrite("temp_image.jpg", image);
+	}
 
 	// load the precomputed information
 	static void initSORB()
@@ -422,6 +438,8 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
 		val |= (t0 < t1) << 7;
 
 		desc[i] = (uchar)val;
+
+		std::cout << "desc[" << i << "]: " << static_cast<int>(desc[i]) << ", val: " << val << std::endl;
 	}
 	
 #undef GET_VALUE
@@ -430,7 +448,6 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
 static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints , Mat& descriptors,
 	const vector<Point>& pattern, int dsize, int WTA_K)
 {
-
 	descriptors = Mat::zeros(keypoints.size(), dsize, CV_8UC1);
 
 
@@ -811,7 +828,6 @@ void SPHORB::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _
 
 	std::copy(pattern0, pattern0 + 512, std::back_inserter(pattern));
 	
-
 	// detect and describe the features on every level
 	for (int l=0;l<nlevels;l++)
 	{
