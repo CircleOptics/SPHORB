@@ -34,7 +34,7 @@ add_executable (example1 example1.cpp
                          nonmax.cpp
                          SPHORB.cpp)
 
-target_link_libraries (example1 ${OpenCV_LIBRARIES} Boost::filesystem)
+target_link_libraries (example1 ${OpenCV_LIBRARIES})
 
 add_executable (example2 example2.cpp
                          pfm.cpp
@@ -44,3 +44,12 @@ add_executable (example2 example2.cpp
                          SPHORB.cpp)
 
 target_link_libraries (example2 ${OpenCV_LIBRARIES})
+
+add_executable (process_directory process_directory.cpp
+                         pfm.cpp
+                         utility.cpp
+                         detector.cpp
+                         nonmax.cpp
+                         SPHORB.cpp)
+
+target_link_libraries (process_directory ${OpenCV_LIBRARIES} Boost::filesystem)

@@ -1,148 +1,70 @@
+/*
+	AUTHOR:
+	Qiang Zhao, email: qiangzhao@tju.edu.cn
+	Copyright (C) 2015 Tianjin University
+	School of Computer Software
+	School of Computer Science and Technology
+
+	LICENSE:
+	SPHORB is distributed under the GNU General Public License.  For information on 
+	commercial licensing, please contact the authors at the contact address below.
+
+	REFERENCE:
+	@article{zhao-SPHORB,
+	author   = {Qiang Zhao and Wei Feng and Liang Wan and Jiawan Zhang},
+	title    = {SPHORB: A Fast and Robust Binary Feature on the Sphere},
+	journal  = {International Journal of Computer Vision},
+	year     = {2015},
+	volume   = {113},
+	number   = {2},
+	pages    = {143-159},
+	}
+*/
+
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>
-#include <boost/filesystem.hpp>
 #include "SPHORB.h"
 #include "utility.h"
-
 using namespace std;
 using namespace cv;
-namespace fs = boost::filesystem;
 
-int main(int argc, char* argv[])
+int main(int argc, char * argv[])
 {
-    float ratio = 0.75f;
-    SPHORB sorb;
-    BFMatcher matcher(NORM_HAMMING, false);
-    
-    // Check if a directory path is provided
-    if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <directory_path>" << endl;
-        return 1;
-    }
+	float ratio = 0.75f;
+	SPHORB sorb;
 
-    string directoryPath = argv[1];
+	Mat img1 = imread(argv[1]);
+	Mat img2 = imread(argv[2]);
 
-    // Check if the provided path is a directory
-    if (!fs::is_directory(directoryPath)) {
-        cerr << "Error: Invalid directory path." << endl;
-        return 1;
-    }
+	Mat descriptors1;
+	Mat descriptors2;
 
-    vector<string> filePaths;
+	vector<KeyPoint> kPoint1;
+	vector<KeyPoint> kPoint2;
 
-    // Collect the paths of all image files in the directory
-    for (const auto& entry : fs::directory_iterator(directoryPath)) {
-        if (fs::is_regular_file(entry) && entry.path().extension() != ".txt") {
-            string filePath = entry.path().string();
+	sorb(img1, Mat(), kPoint1, descriptors1);
+	sorb(img2, Mat(), kPoint2, descriptors2);
 
-            // Add the file path to the vector
-            filePaths.push_back(filePath);
-        }
-    }
+	cout<<"Keypoint1: "<<kPoint1.size()<<", Keypoint2: "<<kPoint2.size()<<endl;
 
-    // Iterate over all image files
-    for (size_t i = 0; i < filePaths.size(); i++) {
-        string filePath1 = filePaths[i];
-        Mat image1 = imread(filePath1);
-        if (image1.empty()) {
-            cerr << "Error: Could not read the image " << filePath1 << endl;
-            continue;
-        }
+	BFMatcher matcher(NORM_HAMMING, false);
+	Matches matches;
 
-        Mat descriptors1;
-        vector<KeyPoint> keypoints1;
+	vector<Matches> dupMatches;
+	matcher.knnMatch(descriptors1, descriptors2, dupMatches, 2);
+	ratioTest(dupMatches, ratio, matches);
+	cout<<"Matches: "<<matches.size()<<endl;
 
-        // Calculate SORB keypoints and descriptors for the first image
-        sorb(image1, Mat(), keypoints1, descriptors1);
+	Mat imgMatches;
+	::drawMatches(img1, kPoint1, img2, kPoint2, matches, imgMatches, Scalar::all(-1), Scalar::all(-1),  
+	vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS,true);
 
-        cout << "Processing file: " << filePath1 << endl;
-        cout << "Keypoints: " << keypoints1.size() << endl;
+	imwrite("1_matches.jpg", imgMatches);
 
-        string keypointsFilePath1 = filePath1 + "_keypoints.txt";
-
-        ofstream keypointsFile1(keypointsFilePath1);
-
-        if (!keypointsFile1.is_open()) {
-            cerr << "Error: Could not create keypoints file for " << filePath1 << endl;
-            continue;
-        }
-
-        for (const auto& keypoint : keypoints1) {
-            keypointsFile1 << keypoint.pt.x << " " << keypoint.pt.y << endl;
-        }
-
-        keypointsFile1.close();
-
-        // Iterate over the remaining image files
-        for (size_t j = i + 1; j < filePaths.size(); j++) {
-            string filePath2 = filePaths[j];
-            Mat image2 = imread(filePath2);
-            if (image2.empty()) {
-                cerr << "Error: Could not read the image " << filePath2 << endl;
-                continue;
-            }
-
-            Mat descriptors2;
-            vector<KeyPoint> keypoints2;
-
-            // Calculate SORB keypoints and descriptors for the second image
-            sorb(image2, Mat(), keypoints2, descriptors2);
-
-            // for (const auto& keypoint : keypoints1) {
-            //     float x = keypoint.pt.x;
-            //     float y = keypoint.pt.y;
-            //     cout << "Keypoint coordinates 1: (" << x << ", " << y << ")" << endl;
-            // }
-
-            // for (const auto& keypoint : keypoints1) {
-            //     float x = keypoint.pt.x;
-            //     float y = keypoint.pt.y;
-            //     cout << "Keypoint coordinates 2: (" << x << ", " << y << ")" << endl;
-            // }
-
-            // for (int i = 0; i < descriptors1.rows; i++) {
-            //     for (int j = 0; j < descriptors1.cols; j++) {
-            //         int value = descriptors1.at<int>(i, j);
-            //         cout << "Descriptor 1 value at (" << i << ", " << j << "): " << value << endl;
-            //     }
-            // }
-
-            // for (int i = 0; i < descriptors2.rows; i++) {
-            //     for (int j = 0; j < descriptors2.cols; j++) {
-            //         int value = descriptors2.at<int>(i, j);
-            //         cout << "Descriptor 2 value at (" << i << ", " << j << "): " << value << endl;
-            //     }
-            // }
-
-            cout << "Processing file: " << filePath2 << endl;
-            cout << "Keypoints: " << keypoints2.size() << endl;
-
-            // Find matches between the descriptors of the two images
-            Matches matches;
-            vector<Matches> dupMatches;
-            matcher.knnMatch(descriptors1, descriptors2, dupMatches, 2);
-            ratioTest(dupMatches, ratio, matches);
-
-            cout << "Matches: " << matches.size() << endl;
-
-            // Save the matches to a file with the suffix "im1_number" and "im2_number"
-            string matchesFilePath1 = filePath1 + "_" + to_string(j) + ".txt";
-
-            ofstream matchesFile1(matchesFilePath1);
-
-            if (!matchesFile1.is_open()) {
-                cerr << "Error: Could not create matches files for " << filePath1 << endl;
-                continue;
-            }
-
-            for (const auto& match : matches) {
-                matchesFile1 << match.queryIdx << " " << match.trainIdx << endl;
-            }
-
-            matchesFile1.close();
-        }
-    }
-
-    return 0;
+	return 0;
 }
+
+// Take images and resize to 1280 x 640
+// For each image pair, write the imgMatches and the actual data to a file
+// Remove outliers from the data - in particular the edge pixels (could use the mask to do this)
