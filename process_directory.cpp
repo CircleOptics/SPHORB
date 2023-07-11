@@ -4,6 +4,7 @@
 #include <boost/filesystem.hpp>
 #include "SPHORB.h"
 #include "utility.h"
+#include <iomanip>  // Include the <iomanip> header for std::setprecision
 
 using namespace std;
 using namespace cv;
@@ -51,28 +52,39 @@ int main(int argc, char* argv[])
         }
 
         Mat descriptors1;
-        vector<KeyPoint> keypoints1;
+        vector<KeyPoint> kPoint1;
 
         // Calculate SORB keypoints and descriptors for the first image
-        sorb(image1, Mat(), keypoints1, descriptors1);
+        sorb(image1, Mat(), kPoint1, descriptors1);
 
         cout << "Processing file: " << filePath1 << endl;
-        cout << "Keypoints: " << keypoints1.size() << endl;
+        cout << "Keypoints: " << kPoint1.size() << endl;
 
         string keypointsFilePath1 = filePath1 + "_keypoints.txt";
 
-        ofstream keypointsFile1(keypointsFilePath1);
+        ifstream fileExists(keypointsFilePath1);
+        if (!fileExists) {
+            ofstream keypointsFile1(keypointsFilePath1);
 
-        if (!keypointsFile1.is_open()) {
-            cerr << "Error: Could not create keypoints file for " << filePath1 << endl;
-            continue;
+            if (!keypointsFile1.is_open()) {
+                cerr << "Error: Could not create keypoints file for " << filePath1 << endl;
+                continue;
+            }
+
+            keypointsFile1 << "Keypoints1: " << kPoint1.size() << std::endl;
+            for (const cv::KeyPoint& kp : kPoint1) {
+                keypointsFile1 << std::fixed << std::setprecision(15)
+                   << kp.pt.x << " " << kp.pt.y << " "
+                   << std::setprecision(2)
+                   << kp.size << " "
+                   << std::fixed << std::setprecision(15)
+                   << kp.angle << " "
+                   << std::setprecision(2)
+                   << kp.response << " " << kp.octave << " " << kp.class_id << endl;
+            }
+
+            keypointsFile1.close();
         }
-
-        for (const auto& keypoint : keypoints1) {
-            keypointsFile1 << keypoint.pt.x << " " << keypoint.pt.y << endl;
-        }
-
-        keypointsFile1.close();
 
         // Iterate over the remaining image files
         for (size_t j = i + 1; j < filePaths.size(); j++) {
@@ -84,39 +96,13 @@ int main(int argc, char* argv[])
             }
 
             Mat descriptors2;
-            vector<KeyPoint> keypoints2;
+            vector<KeyPoint> kPoint2;
 
             // Calculate SORB keypoints and descriptors for the second image
-            sorb(image2, Mat(), keypoints2, descriptors2);
-
-            // for (const auto& keypoint : keypoints1) {
-            //     float x = keypoint.pt.x;
-            //     float y = keypoint.pt.y;
-            //     cout << "Keypoint coordinates 1: (" << x << ", " << y << ")" << endl;
-            // }
-
-            // for (const auto& keypoint : keypoints1) {
-            //     float x = keypoint.pt.x;
-            //     float y = keypoint.pt.y;
-            //     cout << "Keypoint coordinates 2: (" << x << ", " << y << ")" << endl;
-            // }
-
-            // for (int i = 0; i < descriptors1.rows; i++) {
-            //     for (int j = 0; j < descriptors1.cols; j++) {
-            //         int value = descriptors1.at<int>(i, j);
-            //         cout << "Descriptor 1 value at (" << i << ", " << j << "): " << value << endl;
-            //     }
-            // }
-
-            // for (int i = 0; i < descriptors2.rows; i++) {
-            //     for (int j = 0; j < descriptors2.cols; j++) {
-            //         int value = descriptors2.at<int>(i, j);
-            //         cout << "Descriptor 2 value at (" << i << ", " << j << "): " << value << endl;
-            //     }
-            // }
+            sorb(image2, Mat(), kPoint2, descriptors2);
 
             cout << "Processing file: " << filePath2 << endl;
-            cout << "Keypoints: " << keypoints2.size() << endl;
+            cout << "Keypoints: " << kPoint2.size() << endl;
 
             // Find matches between the descriptors of the two images
             Matches matches;
@@ -129,18 +115,21 @@ int main(int argc, char* argv[])
             // Save the matches to a file with the suffix "im1_number" and "im2_number"
             string matchesFilePath1 = filePath1 + "_" + to_string(j) + ".txt";
 
-            ofstream matchesFile1(matchesFilePath1);
+            ofstream matchesFile(matchesFilePath1);
 
-            if (!matchesFile1.is_open()) {
+            if (!matchesFile.is_open()) {
                 cerr << "Error: Could not create matches files for " << filePath1 << endl;
                 continue;
             }
 
-            for (const auto& match : matches) {
-                matchesFile1 << match.queryIdx << " " << match.trainIdx << endl;
+            matchesFile << "Matches: " << matches.size() << std::endl;
+            for (const cv::DMatch& match : matches) {
+                matchesFile << match.queryIdx << " " << match.trainIdx << " " << std::fixed << std::setprecision(2) << match.distance << std::endl;
             }
+            matchesFile.close();
 
-            matchesFile1.close();
+
+            matchesFile.close();
         }
     }
 
