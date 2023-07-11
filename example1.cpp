@@ -99,7 +99,7 @@ int main(int argc, char * argv[])
         // Write matches
         outputFile << "Matches: " << matches.size() << std::endl;
         for (const cv::DMatch& match : matches) {
-			outputFile << match.queryIdx << " " << match.trainIdx << " " << std::setprecision(15) << match.distance << std::endl;
+			outputFile << match.queryIdx << " " << match.trainIdx << " " << std::setprecision(2) << match.distance << std::endl;
 		}
         outputFile.close();
 
@@ -123,10 +123,21 @@ int main(int argc, char * argv[])
             // Compare other attributes as needed
         }
 
+        for (size_t i = 0; i < kPoint2.size(); i++) {
+            const KeyPoint& origKP = kPoint2[i];
+            const KeyPoint& readKP = readKPoint2[i];
+            cout << "Keypoint2[" << i << "] (original vs read):" << endl;
+            cout << "  x: " << origKP.pt.x << " vs " << readKP.pt.x << endl;
+            cout << "  y: " << origKP.pt.y << " vs " << readKP.pt.y << endl;
+            // Compare other attributes as needed
+        }
+
         for (size_t i = 0; i < matches.size(); i++) {
             const DMatch& origMatch = matches[i];
             const DMatch& readMatch = readMatches[i];
             cout << "Match[" << i << "] (original vs read):" << endl;
+            cout << "  queryIdx: " << origMatch.queryIdx << " vs " << readMatch.queryIdx << endl;
+            cout << "  trainIdx: " << origMatch.trainIdx << " vs " << readMatch.trainIdx << endl;
         }
     } else {
         std::cerr << "Failed to open the output file." << std::endl;
