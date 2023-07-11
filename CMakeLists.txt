@@ -30,6 +30,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 add_executable (example1 example1.cpp
                          pfm.cpp
                          utility.cpp
+                         read_file.cpp
                          detector.cpp
                          nonmax.cpp
                          SPHORB.cpp)
@@ -44,6 +45,16 @@ add_executable (example2 example2.cpp
                          SPHORB.cpp)
 
 target_link_libraries (example2 ${OpenCV_LIBRARIES})
+
+add_executable (read_from_file read_from_file.cpp
+                         pfm.cpp
+                         utility.cpp
+                         read_file.cpp
+                         detector.cpp
+                         nonmax.cpp
+                         SPHORB.cpp)
+
+target_link_libraries (read_from_file ${OpenCV_LIBRARIES})
 
 add_executable (process_directory process_directory.cpp
                          pfm.cpp

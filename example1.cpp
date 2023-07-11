@@ -28,6 +28,9 @@
 #include "utility.h"
 using namespace std;
 using namespace cv;
+#include <fstream>
+#include <iomanip>  // Include the <iomanip> header for std::setprecision
+#include "read_file.h"
 
 int main(int argc, char * argv[])
 {
@@ -62,7 +65,72 @@ int main(int argc, char * argv[])
 
 	imwrite("1_matches.jpg", imgMatches);
 
-	return 0;
+	// Write keypoints and matches to a file
+    std::ofstream outputFile("keypoints_matches.txt");
+    if (outputFile.is_open()) {
+        // Write kPoint1
+        outputFile << "Keypoints1: " << kPoint1.size() << std::endl;
+        for (const cv::KeyPoint& kp : kPoint1) {
+            outputFile << std::fixed << std::setprecision(15)
+               << kp.pt.x << " " << kp.pt.y << " "
+               << std::setprecision(2)
+               << kp.size << " "
+               << std::fixed << std::setprecision(15)
+               << kp.angle << " "
+               << std::setprecision(2)
+               << kp.response << " " << kp.octave << " " << kp.class_id << endl;
+        }
+        outputFile << std::endl;
+
+        // Write kPoint2
+        outputFile << "Keypoints2: " << kPoint2.size() << std::endl;
+        for (const cv::KeyPoint& kp : kPoint2) {
+            outputFile << std::fixed << std::setprecision(15)
+               << kp.pt.x << " " << kp.pt.y << " "
+               << std::setprecision(2)
+               << kp.size << " "
+               << std::fixed << std::setprecision(15)
+               << kp.angle << " "
+               << std::setprecision(2)
+               << kp.response << " " << kp.octave << " " << kp.class_id << endl;
+        }
+        outputFile << std::endl;
+
+        // Write matches
+        outputFile << "Matches: " << matches.size() << std::endl;
+        for (const cv::DMatch& match : matches) {
+			outputFile << match.queryIdx << " " << match.trainIdx << " " << std::setprecision(15) << match.distance << std::endl;
+		}
+        outputFile.close();
+
+        // Read keypoints and matches from file
+        vector<KeyPoint> readKPoint1, readKPoint2;
+        vector<DMatch> readMatches;
+        readKeypointsMatchesFromFile("keypoints_matches.txt", readKPoint1, readKPoint2, readMatches);
+
+        // Compare the number of keypoints and matches
+        cout << "Number of keypoints1 (original vs read): " << kPoint1.size() << " vs " << readKPoint1.size() << endl;
+        cout << "Number of keypoints2 (original vs read): " << kPoint2.size() << " vs " << readKPoint2.size() << endl;
+        cout << "Number of matches (original vs read): " << matches.size() << " vs " << readMatches.size() << endl;
+
+        // Validate individual keypoints and matches
+        for (size_t i = 0; i < kPoint1.size(); i++) {
+            const KeyPoint& origKP = kPoint1[i];
+            const KeyPoint& readKP = readKPoint1[i];
+            cout << "Keypoint1[" << i << "] (original vs read):" << endl;
+            cout << "  x: " << origKP.pt.x << " vs " << readKP.pt.x << endl;
+            cout << "  y: " << origKP.pt.y << " vs " << readKP.pt.y << endl;
+            // Compare other attributes as needed
+        }
+
+        for (size_t i = 0; i < matches.size(); i++) {
+            const DMatch& origMatch = matches[i];
+            const DMatch& readMatch = readMatches[i];
+            cout << "Match[" << i << "] (original vs read):" << endl;
+        }
+    } else {
+        std::cerr << "Failed to open the output file." << std::endl;
+    }
 }
 
 // Take images and resize to 1280 x 640
