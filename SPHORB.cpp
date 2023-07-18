@@ -439,7 +439,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
 
 		desc[i] = (uchar)val;
 
-		std::cout << "desc[" << i << "]: " << static_cast<int>(desc[i]) << ", val: " << val << std::endl;
+		// std::cout << "desc[" << i << "]: " << static_cast<int>(desc[i]) << ", val: " << val << std::endl;
 	}
 	
 #undef GET_VALUE
