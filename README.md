@@ -75,11 +75,13 @@ In the repository, there are some folders and files.
 [2] E. Rosten and T. Drummond. Machine learning for highspeed corner detection. 
     In Proceedings of the European Conference on Computer Vision (ECCV), 2006.
 
-Build and Run instructions
+Build and Run instructions [with Circle Optics additions]
 ---------------
 `$ mkdir build`  
 `$ cd build`  
-`$ cmake ..`  
+`$ ccmake ..` 
+    press 't' to see advanced config options
+    scroll to second page, OpenCV_DIR, modify to point to release folder of manual opencv build from source ex '/home/mitchell/3D/opencv/release'
 `$ make`  
 
 Run Example (from root directory)   

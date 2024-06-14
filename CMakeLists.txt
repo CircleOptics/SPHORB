@@ -1,6 +1,9 @@
 
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 # Check if the current CMake version is greater than a specified version
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.0)
     message(STATUS "CMake version is within the allowed range.")
