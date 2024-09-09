@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
     // do the same for matches
     fs::create_directory(directoryPath + "/matches");
     fs::create_directory(matches_dir_path);
-    
+
     vector<string> filePaths;
 
     // Collect the paths of all image files in the directory
