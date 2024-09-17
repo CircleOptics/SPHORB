@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+#include <bitset>
 #include <opencv2/opencv.hpp>
+#include <opencv2/features2d.hpp>
 #include <boost/filesystem.hpp>
 #include "SPHORB.h"
 #include "utility.h"
@@ -30,18 +32,28 @@ int main(int argc, char* argv[])
         return 1;
     }
     // change to make this follow our dataset file structure (see lexicon onenote)
-    string equirectangular_dir_path = directoryPath + "/equirectangulars";
+    string equirectangular_dir_path = directoryPath + "/compressed_equirectangulars";
     string keypoints_dir_path = directoryPath + "/keypoints/SPHORB";
     string matches_dir_path = directoryPath + "/matches/SPHORB";
+    string descriptors_dir_path = directoryPath + "/descriptors/SPHORB";
     if(!fs::is_directory(equirectangular_dir_path))
     {
         cerr << "Error: no Equirectangulars folder within this dir." << endl;
         return 1;
     }
+    cv::Mat mask;
+    if(fs::is_directory(directoryPath + "/masks"))
+    {
+        // see if there's a compressed mask there
+        mask = cv::imread(directoryPath + "/masks/h2_mask_compressed.png", cv::IMREAD_GRAYSCALE);
+    }
     // create intermediate keypoints dir
     fs::create_directory(directoryPath + "/keypoints");
     // create actual keypoints dir
     fs::create_directory(keypoints_dir_path);
+    // do the same for descriptors?
+    fs::create_directory(directoryPath + "/descriptors");
+    fs::create_directory(descriptors_dir_path);
     // do the same for matches
     fs::create_directory(directoryPath + "/matches");
     fs::create_directory(matches_dir_path);
@@ -74,7 +86,7 @@ int main(int argc, char* argv[])
         Mat descriptors;
 
         // Calculate SORB keypoints and descriptors for the image
-        sorb(image, Mat(), keypoints, descriptors);
+        sorb(image, mask, keypoints, descriptors);
         string name = fs::path(filePath).stem().string();
         cout << "Processing file: " << name << " ... ";
         cout << "Keypoints: " << keypoints.size() << endl;
@@ -86,45 +98,55 @@ int main(int argc, char* argv[])
         // Get the file name without the extension
         string baseFileName = fs::path(filePath).stem().string();
 
-        // Get the original directory path
-        //string directoryPath = fs::path(filePath).parent_path().string();
-
         // Create a path object for the "keypoints" subdirectory
-        //fs::path keypointsSubdirectory = fs::path(directoryPath) / "keypoints";
         fs::path keypointsSubdirectory = fs::path(keypoints_dir_path);
+        fs::path descriptorSubdirectory = fs::path(descriptors_dir_path);
         // Create the "keypoints" subdirectory if it doesn't exist
         fs::create_directory(keypointsSubdirectory);
 
         // Create the keypoints file path with the original directory
-        string keypointsFilePath = (keypointsSubdirectory / baseFileName).string() + "_keypoints.txt";
-
-        // cout << keypointsFilePath << endl;
-
+        string keypointsFilePath = (keypointsSubdirectory / baseFileName).string() + ".yml";
+        string descriptorsFilePath = (descriptorSubdirectory / baseFileName).string() + ".yml";
         ifstream fileExists(keypointsFilePath);
-        if (!fileExists) {
-            ofstream keypointsFile(keypointsFilePath);
 
-            if (!keypointsFile.is_open()) {
-                cerr << "Error: Could not create keypoints file for " << filePath << endl;
-                continue;
-            }
+        // Pycolmap excpects 128-long descriptors commonly associated with SIFT Features.
+        // In order to get it to stop yelling at us when we add features, we just pad our ORB features with 0s
+        cv::Mat padded_Descriptors((int)keypoints.size(), 128, CV_8U);
+        padded_Descriptors.setTo(0);
 
-            keypointsFile << "Keypoints1: " << keypoints.size() << std::endl;
-            for (const cv::KeyPoint& kp : keypoints) {
-                keypointsFile << std::fixed << std::setprecision(15)
-                    << kp.pt.x << " " << kp.pt.y << " "
-                    << std::setprecision(2)
-                    << kp.size << " "
-                    << std::fixed << std::setprecision(15)
-                    << kp.angle << " "
-                    << std::setprecision(2)
-                    << kp.response << " " << kp.octave << " " << kp.class_id << endl;
-            }
-
-
-            keypointsFile.close();
+        int num_keypoints = 0;
+        cv::FileStorage fs;
+        fs.open(keypointsFilePath, cv::FileStorage::WRITE);
+        fs << "keypoints" << "[";
+        for (int i = 0; i < keypoints.size(); i++) //(const auto& kp : keypoints)
+        {
+            cv::KeyPoint kp = keypoints[i];
+            fs << "{:"
+            << "x" << kp.pt.x
+            << "y" << kp.pt.y
+            << "size" << kp.size
+            << "angle" << kp.angle
+            << "response" << kp.response
+            << "octave" << kp.octave
+            << "class_id" << kp.class_id
+            << "}";
+            // now do the descriptor (we have to insert the real values into the first
+            for(int j = 0; j < 128; j++)
+                padded_Descriptors.at<uchar>(i, j) = descriptors.at<uchar>(i, j);
+            num_keypoints++;
         }
+        fs << "]";
+        fs.release();
+
+        fs.open(descriptorsFilePath, cv::FileStorage::WRITE);
+        cv::write(fs, "descriptors", padded_Descriptors);
+        fs.release();
+
+        // normalize because we don't like just zeros and ones
+        //cv::Mat normalizedDescriptors;
+        //cv::normalize(floatDescriptors, normalizedDescriptors, 0, 1, cv::NORM_MINMAX);
     }
+
 
     // Iterate over keypoints and descriptors to calculate matches
     for (size_t i = 0; i < keypointsList.size(); i++) {
@@ -150,21 +172,14 @@ int main(int argc, char* argv[])
             cout << "Matches: " << matches.size() << endl;
 
 
-            // Get the original directory path
-            //string directoryPath = fs::path(filePaths[i]).parent_path().string();
-
             // Create a path object for the "matches" subdirectory
-            //fs::path matchesSubdirectory = fs::path(directoryPath) / "matches";
             fs::path matchesSubdirectory = fs::path(matches_dir_path);
-            // Create the "matches" subdirectory if it doesn't exist
-            //fs::create_directory(matchesSubdirectory);
-
             // Create a subdirectory within "matchesSubdirectory" using baseFileName1
             fs::path subdirectory = matchesSubdirectory / baseFileName1;
             fs::create_directory(subdirectory);
 
             // Create the matches file path with the original directory
-            string matchesFilePath = (subdirectory / (baseFileName1 + "_" + baseFileName2 + ".txt")).string();
+            string matchesFilePath = (subdirectory / (baseFileName2 + ".txt")).string();
 
             ofstream matchesFile(matchesFilePath);
 

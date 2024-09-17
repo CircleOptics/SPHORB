@@ -459,7 +459,6 @@ static void computeDescriptors(const Mat& image, vector<KeyPoint>& keypoints , M
 // map the keypoint of each level of the five part of the storage grid to the original spherical image
 static void mappingKeypoint(const Mat& img, vector<cv::KeyPoint>& kps, int edge, const float* geoinfo, int level)
 {
-
 	float scale = float(cells[0])/float(cells[level]);
 	int pWidth = cells[level]*2+1;
 
@@ -488,6 +487,16 @@ static void mappingKeypoint(const Mat& img, vector<cv::KeyPoint>& kps, int edge,
 
 		float panoX = phi / c;
 		float panoY = theta / c;
+
+		/**
+		cv::KeyPoint new_key_point;
+		new_key_point.size = 31.0f*scale;
+		new_key_point.pt.x = panoX*scale;
+		new_key_point.pt.y = panoY*scale;
+		new_key_point.class_id = -1;
+		new_key_point.octave = level;
+		result.push_back(new_key_point);
+		*/
 
 		kps[i].size = 31.0f*scale;
 		kps[i].pt.x = panoX*scale;
@@ -792,6 +801,8 @@ int SPHORB::descriptorType() const
 void SPHORB::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                       OutputArray _descriptors, bool useProvidedKeypoints) const
 {
+	// load the mask and resize according to the expected image size at each layer
+
 	bool do_keypoints = !useProvidedKeypoints;
     bool do_descriptors = _descriptors.needed();
 
@@ -801,6 +812,7 @@ void SPHORB::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _
 	_keypoints.clear();
 	Mat temp = _image.getMat();
 	Mat descriptors;
+	Mat temp_mask = _mask.getMat();
     if( temp.type() != CV_8UC1 )
         cvtColor(_image, temp, CV_BGR2GRAY);
 
@@ -835,34 +847,41 @@ void SPHORB::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _
 		Size sz(cells[l]*5, cells[l]*5/2);
 		Mat image(sz, temp.type());
 		resize(temp, image, sz, 0, 0, CV_INTER_AREA);
+		// do the same for the user mask
+		Mat usr_mask(sz, _mask.type());
+		resize(_mask, usr_mask, sz, 0, 0, CV_INTER_AREA);
+		//resize(usr_mask, _mask.getMat(), sz, CV_INTER_AREA);
 
 		// split the spherical image to five parts
 		Mat subImg[5];
+		Mat subImgMask[5];
 		for(int i=0;i<5;i++)
 		{
 			subImg[i].create(Size(2*cells[l]+1, cells[l]+1), image.type());
 			splitSphere2(image, subImg[i], i, imgInfos[l][i]);
+			subImgMask[i].create(Size(2*cells[l]+1, cells[l]+1), image.type());
+			splitSphere2(usr_mask, subImgMask[i], i, imgInfos[l][i]);
 		}
 
 		// extend each part for boundary pixels 
 		extendEdge(subImg[0], subImg[1], subImg[2], subImg[3], subImg[4], SFAST_EDGE + SPHORB_EDGE);
+		extendEdge(subImgMask[0], subImgMask[1], subImgMask[2], subImgMask[3], subImgMask[4], SFAST_EDGE + SPHORB_EDGE);
 
 		// the key points on each level
 		vector<KeyPoint> levelKeyPoints;
-
 		for (int i=0;i<5;i++)
 		{
 			xy* corners;
 			int* score;
 			int cor_num;
 			vector<KeyPoint> partKeyPoints;
-
+			cv::Mat this_mask;
+			cv::bitwise_and(maskes[l], subImgMask[i], this_mask);
 			// detect the key points and do the non-max suppression
-			corners = sfast_corner_detect(&subImg[i].at<uchar>(0,0), &maskes[l].at<uchar>(0,0), 
-							maskes[l].cols, (int)maskes[l].step, maskes[l].rows, barrier, &cor_num);
+			//corners = sfast_corner_detect(&subImg[i].at<uchar>(0,0), &maskes[l].at<uchar>(0,0), maskes[l].cols, (int)maskes[l].step, maskes[l].rows, barrier, &cor_num);
+			corners = sfast_corner_detect(&subImg[i].at<uchar>(0,0), &this_mask.at<uchar>(0,0), this_mask.cols, (int)this_mask.step, this_mask.rows, barrier, &cor_num);
 			score = sfastScore(&subImg[i].at<uchar>(0,0), (int)subImg[i].step, corners, cor_num, barrier);
 			sfastNonmaxSuppression(corners, score, cor_num, partKeyPoints, i);
-
 			levelKeyPoints.insert(levelKeyPoints.end(), partKeyPoints.begin(), partKeyPoints.end());
 			
 			delete[] corners;
@@ -889,6 +908,7 @@ void SPHORB::operator()(InputArray _image, InputArray _mask, vector<KeyPoint>& _
 
 		descriptors.push_back(tDesc);
 
+		// I think the following function maps this level's keypoints onto the larger images coordinate system.
 		mappingKeypoint(image, levelKeyPoints, SFAST_EDGE + SPHORB_EDGE, geoinfos[l], l);
 
 		_keypoints.insert(_keypoints.end(), levelKeyPoints.begin(), levelKeyPoints.end());
