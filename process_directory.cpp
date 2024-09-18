@@ -32,20 +32,20 @@ int main(int argc, char* argv[])
         return 1;
     }
     // change to make this follow our dataset file structure (see lexicon onenote)
-    string equirectangular_dir_path = directoryPath + "/compressed_equirectangulars";
+    string equirectangular_dir_path = directoryPath + "/small_equirectangulars";
     string keypoints_dir_path = directoryPath + "/keypoints/SPHORB";
     string matches_dir_path = directoryPath + "/matches/SPHORB";
     string descriptors_dir_path = directoryPath + "/descriptors/SPHORB";
     if(!fs::is_directory(equirectangular_dir_path))
     {
-        cerr << "Error: no Equirectangulars folder within this dir." << endl;
+        cerr << "Error: no small Equirectangulars folder within this dir." << endl;
         return 1;
     }
     cv::Mat mask;
     if(fs::is_directory(directoryPath + "/masks"))
     {
         // see if there's a compressed mask there
-        mask = cv::imread(directoryPath + "/masks/h2_mask_compressed.png", cv::IMREAD_GRAYSCALE);
+        mask = cv::imread(directoryPath + "/masks/h2_mask_small.png", cv::IMREAD_GRAYSCALE);
     }
     // create intermediate keypoints dir
     fs::create_directory(directoryPath + "/keypoints");
