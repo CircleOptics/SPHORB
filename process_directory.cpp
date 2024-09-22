@@ -46,6 +46,16 @@ int main(int argc, char* argv[])
     {
         // see if there's a compressed mask there
         mask = cv::imread(directoryPath + "/masks/h2_mask_small.png", cv::IMREAD_GRAYSCALE);
+        if (mask.empty())
+        {
+            cerr << "No small mask found at /masks/h2_mask_small.png." << endl;
+            return 1;
+        }
+    }
+    if (mask.empty())
+    {
+        cerr << "No small mask found at /masks/h2_mask_small.png. Continuing without mask." << endl;
+        return 1;
     }
     // create intermediate keypoints dir
     fs::create_directory(directoryPath + "/keypoints");
@@ -150,6 +160,8 @@ int main(int argc, char* argv[])
 
     // Iterate over keypoints and descriptors to calculate matches
     for (size_t i = 0; i < keypointsList.size(); i++) {
+        string baseFileName1 = fs::path(filePaths[i]).stem().string();
+        cout << "Processing matches with image " << baseFileName1 << endl;
         for (size_t j = i + 1; j < keypointsList.size(); j++) {
             vector<KeyPoint>& keypoints1 = keypointsList[i];
             Mat& descriptors1 = descriptorsList[i];
@@ -164,13 +176,12 @@ int main(int argc, char* argv[])
             matcher.knnMatch(descriptors1, descriptors2, dupMatches, 2);
             ratioTest(dupMatches, ratio, matches);
 
+            // Only proceed to write
             // Save the matches to a file with the suffix "im1_number" and "im2_number"
-            string baseFileName1 = fs::path(filePaths[i]).stem().string();
             string baseFileName2 = fs::path(filePaths[j]).stem().string();
 
-            cout << "Processing matches for files: " << baseFileName1 << " and " << baseFileName2 << " ... ";
-            cout << "Matches: " << matches.size() << endl;
-
+            // cout << "Processing matches for files: " << baseFileName1 << " and " << baseFileName2 << " ... ";
+            // cout << "Matches: " << matches.size() << endl;
 
             // Create a path object for the "matches" subdirectory
             fs::path matchesSubdirectory = fs::path(matches_dir_path);
